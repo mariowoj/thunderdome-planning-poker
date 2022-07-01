@@ -46,8 +46,10 @@
         groups: [],
         actionItems: [],
         votes: [],
+        facilitators: [],
+        maxVotes: 3,
+        brainstormVisibility: 'visible',
     }
-    let maxVotes = 3
     let showDeleteRetro = false
     let actionItem = ''
     let showExport = false
@@ -69,6 +71,7 @@
             return prev
         }, {})
         let userVoteCount = 0
+        let result = []
 
         retro.items.map(item => {
             groupMap[item.groupId].items.push(item)
@@ -82,9 +85,16 @@
             }
         })
 
-        voteLimitReached = userVoteCount === maxVotes
+        voteLimitReached = userVoteCount === retro.maxVotes
 
-        return Object.values(groupMap)
+        result = Object.values(groupMap)
+        if (retro.phase === 'action' || retro.phase === 'completed') {
+            result.sort((a, b) => {
+                return b.votes.length - a.votes.length
+            })
+        }
+
+        return result
     }
 
     const onSocketMessage = function (evt) {
@@ -119,7 +129,7 @@
                 )
                 retro.users = JSON.parse(parsedEvent.value)
 
-                notifications.danger(`${leftUser.name} retreated.`)
+                notifications.danger(`${leftUser.name} left.`)
                 break
             }
             case 'retro_updated':
@@ -155,10 +165,12 @@
                 const revisedRetro = JSON.parse(parsedEvent.value)
                 retro.name = revisedRetro.retroName
                 retro.joinCode = revisedRetro.joinCode
+                retro.brainstormVisibility = revisedRetro.brainstormVisibility
+                retro.maxVotes = revisedRetro.maxVotes
                 break
             case 'conceded':
                 // retro over, goodbye.
-                notifications.warning('Retro deleted')
+                notifications.warning($_('retroDeleted'))
                 router.route(appRoutes.retros)
                 break
             default:
@@ -188,9 +200,7 @@
                     })
                 } else if (e.code === 4003) {
                     eventTag('socket_duplicate', 'retro', '', () => {
-                        notifications.danger(
-                            `Duplicate retro session exists for your ID`,
-                        )
+                        notifications.danger($_('duplicateRetroSession'))
                         router.route(`${appRoutes.retros}`)
                     })
                 } else if (e.code === 4002) {
@@ -224,7 +234,8 @@
         })
     })
 
-    $: isOwner = retro.ownerId === $user.id
+    $: isFacilitator =
+        retro.facilitators && retro.facilitators.includes($user.id)
 
     const sendSocketEvent = (type, value) => {
         ws.send(
@@ -364,6 +375,24 @@
         )
     }
 
+    const handleAddFacilitator = userId => () => {
+        sendSocketEvent(
+            'add_facilitator',
+            JSON.stringify({
+                userId,
+            }),
+        )
+    }
+
+    const handleRemoveFacilitator = userId => () => {
+        sendSocketEvent(
+            'remove_facilitator',
+            JSON.stringify({
+                userId,
+            }),
+        )
+    }
+
     function authRetro(e) {
         e.preventDefault()
 
@@ -424,7 +453,7 @@
 </style>
 
 <svelte:head>
-    <title>Retro {retro.name} | Thunderdome</title>
+    <title>{$_('retro')} {retro.name} | {$_('appName')}</title>
 </svelte:head>
 
 {#if retro.name && !socketReconnecting && !socketError}
@@ -443,16 +472,16 @@
                     {#if retro.phase === 'completed'}
                         <SolidButton color="green" onClick="{toggleExport}">
                             {#if showExport}
-                                Back
+                                {$_('back')}
                             {:else}
-                                Export
+                                {$_('export')}
                             {/if}
                         </SolidButton>
                     {/if}
-                    {#if isOwner}
+                    {#if isFacilitator}
                         {#if retro.phase !== 'completed'}
-                            <SolidButton color="blue" onClick="{advancePhase}">
-                                Next Phase
+                            <SolidButton color="green" onClick="{advancePhase}">
+                                {$_('nextPhase')}
                             </SolidButton>
                         {/if}
 
@@ -461,7 +490,7 @@
                             onClick="{toggleEditRetro}"
                             testid="retro-edit"
                         >
-                            Edit Retro
+                            {$_('editRetro')}
                         </HollowButton>
 
                         <HollowButton
@@ -469,11 +498,11 @@
                             onClick="{toggleDeleteRetro}"
                             class="mr-2"
                         >
-                            Delete Retro
+                            {$_('deleteRetro')}
                         </HollowButton>
                     {:else}
                         <HollowButton color="red" onClick="{abandonRetro}">
-                            Leave Retro
+                            {$_('leaveRetro')}
                         </HollowButton>
                     {/if}
                 </div>
@@ -488,7 +517,7 @@
                         class="flex-initial px-1 {retro.phase === 'intro' &&
                             'border-b-2 border-blue-500 dark:border-yellow-400 text-gray-800 dark:text-gray-200'}"
                     >
-                        Prime Directive
+                        {$_('primeDirective')}
                     </div>
                     <div class="flex-initial px-1">
                         <ChevronRight />
@@ -498,7 +527,7 @@
                             'brainstorm' &&
                             'border-b-2 border-blue-500 dark:border-yellow-400 text-gray-800 dark:text-gray-200'}"
                     >
-                        Brainstorm
+                        {$_('brainstorm')}
                     </div>
                     <div class="flex-initial px-1">
                         <ChevronRight />
@@ -507,7 +536,7 @@
                         class="flex-initial px-1 {retro.phase === 'group' &&
                             'border-b-2 border-blue-500 dark:border-yellow-400 text-gray-800 dark:text-gray-200'}"
                     >
-                        Group
+                        {$_('group')}
                     </div>
                     <div class="flex-initial px-1">
                         <ChevronRight />
@@ -516,7 +545,7 @@
                         class="flex-initial px-1 {retro.phase === 'vote' &&
                             'border-b-2 border-blue-500 dark:border-yellow-400 text-gray-800 dark:text-gray-200'}"
                     >
-                        Vote
+                        {$_('vote')}
                     </div>
                     <div class="flex-initial px-1">
                         <ChevronRight />
@@ -525,7 +554,7 @@
                         class="flex-initial px-1 {retro.phase === 'action' &&
                             'border-b-2 border-blue-500 dark:border-yellow-400 text-gray-800 dark:text-gray-200'}"
                     >
-                        Action Items
+                        {$_('actionItems')}
                     </div>
                     <div class="flex-initial px-1">
                         <ChevronRight />
@@ -534,19 +563,19 @@
                         class="flex-initial px-1 {retro.phase === 'completed' &&
                             'border-b-2 border-blue-500 dark:border-yellow-400 text-gray-800 dark:text-gray-200'}"
                     >
-                        Done
+                        {$_('done')}
                     </div>
                 </div>
             </div>
             <div class="w-1/2 text-right text-gray-600 dark:text-gray-400">
                 {#if retro.phase === 'brainstorm'}
-                    Add your comments below
+                    {$_('brainstormPhaseDescription')}
                 {:else if retro.phase === 'group'}
-                    Drag and drop comments to group them together
+                    {$_('groupPhaseDescription')}
                 {:else if retro.phase === 'vote'}
-                    Vote for the groups you'd like to discuss most
+                    {$_('votePhaseDescription')}
                 {:else if retro.phase === 'action'}
-                    Add action items, you can no longer group or vote comments
+                    {$_('actionPhaseDescription')}
                 {/if}
             </div>
         </div>
@@ -595,28 +624,37 @@
                                 handleSubmit="{handleItemAdd}"
                                 handleDelete="{handleItemDelete}"
                                 itemType="worked"
-                                newItemPlaceholder="What worked well..."
+                                newItemPlaceholder="{$_(
+                                    'retroWorkedPlaceholder',
+                                )}"
                                 phase="{retro.phase}"
-                                isOwner="{isOwner}"
+                                isFacilitator="{isFacilitator}"
                                 items="{workedItems}"
+                                feedbackVisibility="{retro.brainstormVisibility}"
                             />
                             <RetroItemForm
                                 handleSubmit="{handleItemAdd}"
                                 handleDelete="{handleItemDelete}"
                                 itemType="improve"
-                                newItemPlaceholder="What needs improvement..."
+                                newItemPlaceholder="{$_(
+                                    'retroImprovePlaceholder',
+                                )}"
                                 phase="{retro.phase}"
-                                isOwner="{isOwner}"
+                                isFacilitator="{isFacilitator}"
                                 items="{improveItems}"
+                                feedbackVisibility="{retro.brainstormVisibility}"
                             />
                             <RetroItemForm
                                 handleSubmit="{handleItemAdd}"
                                 handleDelete="{handleItemDelete}"
                                 itemType="question"
-                                newItemPlaceholder="I want to ask..."
+                                newItemPlaceholder="{$_(
+                                    'retroQuestionPlaceholder',
+                                )}"
                                 phase="{retro.phase}"
-                                isOwner="{isOwner}"
+                                isFacilitator="{isFacilitator}"
                                 items="{questionItems}"
+                                feedbackVisibility="{retro.brainstormVisibility}"
                             />
                         </div>
                     {/if}
@@ -665,7 +703,9 @@
                                         <form on:submit="{handleActionItem}">
                                             <input
                                                 bind:value="{actionItem}"
-                                                placeholder="Action item..."
+                                                placeholder="{$_(
+                                                    'actionItemPlaceholder',
+                                                )}"
                                                 class="dark:bg-gray-800 border-gray-300 dark:border-gray-700 border-2 appearance-none rounded py-2
                     px-3 text-gray-700 dark:text-gray-400 leading-tight focus:outline-none
                     focus:bg-white dark:focus:bg-gray-700 focus:border-indigo-500 dark:focus:border-yellow-400 w-full"
@@ -673,7 +713,7 @@
                                                 name="actionItem"
                                                 type="text"
                                                 required
-                                                disabled="{!isOwner}"
+                                                disabled="{!isFacilitator}"
                                             />
                                             <button type="submit" class="hidden"
                                             ></button>
@@ -686,7 +726,7 @@
                                     >
                                         <div class="flex items-center">
                                             <div class="flex-shrink">
-                                                {#if isOwner}
+                                                {#if isFacilitator}
                                                     <button
                                                         on:click="{handleActionDelete(
                                                             item.id,
@@ -744,7 +784,10 @@
                                 <UserCard
                                     user="{usr}"
                                     votes="{retro.votes}"
-                                    maxVotes="{maxVotes}"
+                                    maxVotes="{retro.maxVotes}"
+                                    facilitators="{retro.facilitators}"
+                                    handleAddFacilitator="{handleAddFacilitator}"
+                                    handleRemoveFacilitator="{handleRemoveFacilitator}"
                                 />
                             {/if}
                         {/each}
@@ -794,7 +837,7 @@
 
                                 <div class="text-right">
                                     <SolidButton type="submit"
-                                        >{$_('battleJoin')}</SolidButton
+                                        >{$_('joinRetro')}</SolidButton
                                     >
                                 </div>
                             </form>
@@ -804,15 +847,15 @@
                     <h1
                         class="text-5xl text-orange-500 leading-tight font-bold"
                     >
-                        Ooops, reloading Retro...
+                        {$_('reloadingRetro')}
                     </h1>
                 {:else if socketError}
                     <h1 class="text-5xl text-red-500 leading-tight font-bold">
-                        Error joining retro, refresh and try again.
+                        {$_('retroJoinError')}
                     </h1>
                 {:else}
                     <h1 class="text-5xl text-green-500 leading-tight font-bold">
-                        Loading Retro...
+                        {$_('loadingRetro')}
                     </h1>
                 {/if}
             </div>
@@ -826,6 +869,8 @@
         handleRetroEdit="{handleRetroEdit}"
         toggleEditRetro="{toggleEditRetro}"
         joinCode="{retro.joinCode}"
+        maxVotes="{retro.maxVotes}"
+        brainstormVisibility="{retro.brainstormVisibility}"
     />
 {/if}
 
@@ -833,7 +878,7 @@
     <DeleteConfirmation
         toggleDelete="{toggleDeleteRetro}"
         handleDelete="{concedeRetro}"
-        confirmText="Are you sure you want to delete this retrospective?"
-        confirmBtnText="Delete Retro"
+        confirmText="{$_('confirmDeleteRetro')}"
+        confirmBtnText="{$_('deleteRetro')}"
     />
 {/if}

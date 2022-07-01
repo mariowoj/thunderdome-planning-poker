@@ -12,6 +12,8 @@
     import SolidButton from '../components/SolidButton.svelte'
     import CountryFlag from '../components/user/CountryFlag.svelte'
     import UserAvatar from '../components/user/UserAvatar.svelte'
+    import CommentIcon from '../components/icons/CommentIcon.svelte'
+    import ActionComments from '../components/retro/ActionComments.svelte'
     import { warrior } from '../stores.js'
     import { _ } from '../i18n.js'
     import { AppConfig, appRoutes } from '../config.js'
@@ -137,6 +139,13 @@
         showDeleteTeam = !showDeleteTeam
     }
 
+    let showRetroActionComments = false
+    let selectedRetroAction = null
+    const toggleRetroActionComments = id => () => {
+        showRetroActionComments = !showRetroActionComments
+        selectedRetroAction = id
+    }
+
     function getTeam() {
         xfetch(teamPrefix)
             .then(res => res.json())
@@ -222,7 +231,7 @@
                     totalRetroActions = result.meta.count
                 })
                 .catch(function () {
-                    notifications.danger('error getting retro actions')
+                    notifications.danger($_('teamGetRetroActionsError'))
                 })
         }
     }
@@ -342,14 +351,14 @@
         getRetrosActions()
     }
 
-    let showActionEdit = false
+    let showRetroActionEdit = false
     let selectedAction = null
-    const toggleActionEdit = id => () => {
-        showActionEdit = !showActionEdit
+    const toggleRetroActionEdit = id => () => {
+        showRetroActionEdit = !showRetroActionEdit
         selectedAction = retroActions.find(r => r.id === id)
     }
 
-    function handleActionEdit(action) {
+    function handleRetroActionEdit(action) {
         xfetch(`/api/retros/${action.retroId}/actions/${action.id}`, {
             method: 'PUT',
             body: {
@@ -360,11 +369,11 @@
             .then(function () {
                 eventTag('team_action_update', 'engagement', 'success')
                 getRetrosActions()
-                toggleActionEdit(null)()
-                notifications.success('Action item updated successfully')
+                toggleRetroActionEdit(null)()
+                notifications.success($_('updateActionItemSuccess'))
             })
             .catch(function () {
-                notifications.danger('Error updating action item')
+                notifications.danger($_('updateActionItemError'))
                 eventTag('team_action_update', 'engagement', 'failure')
             })
     }
@@ -445,7 +454,7 @@
             <SolidButton
                 additionalClasses="font-rajdhani uppercase text-2xl"
                 href="{`${currentPageUrl}/checkin`}"
-                >Checkins
+                >{$_('checkins')}
             </SolidButton>
         </div>
     </div>
@@ -463,7 +472,7 @@
                 <div class="flex-1 text-right">
                     {#if isTeamMember}
                         <SolidButton onClick="{toggleCreateBattle}"
-                            >Create Battle
+                            >{$_('battleCreate')}
                         </SolidButton>
                     {/if}
                 </div>
@@ -527,13 +536,13 @@
                     <h2
                         class="text-2xl font-semibold font-rajdhani uppercase mb-4 dark:text-white"
                     >
-                        Retros
+                        {$_('retros')}
                     </h2>
                 </div>
                 <div class="flex-1 text-right">
                     {#if isTeamMember}
                         <SolidButton onClick="{toggleCreateRetro}"
-                            >Create Retro
+                            >{$_('createRetro')}
                         </SolidButton>
                     {/if}
                 </div>
@@ -566,7 +575,7 @@
                                 <HollowButton
                                     href="{appRoutes.retro}/{retro.id}"
                                 >
-                                    Join Retro
+                                    {$_('joinRetro')}
                                 </HollowButton>
                             </div>
                         </div>
@@ -580,7 +589,7 @@
                         <h3
                             class="text-xl font-semibold font-rajdhani uppercase mb-4 dark:text-white"
                         >
-                            Retro Action Items
+                            {$_('retroActionItems')}
                         </h3>
 
                         <div class="text-right mb-4">
@@ -604,15 +613,16 @@
                             <label
                                 for="completedActionItems"
                                 class="dark:text-gray-300"
-                                >Show Completed Action Items</label
+                                >{$_('showCompletedActionItems')}</label
                             >
                         </div>
                     </div>
 
                     <Table>
                         <tr slot="header">
-                            <HeadCol>Action Item</HeadCol>
-                            <HeadCol>Completed</HeadCol>
+                            <HeadCol>{$_('actionItem')}</HeadCol>
+                            <HeadCol>{$_('completed')}</HeadCol>
+                            <HeadCol>{$_('comments')}</HeadCol>
                             <HeadCol />
                         </tr>
                         <tbody
@@ -646,13 +656,26 @@
                                             class="select-none"></label>
                                     </RowCol>
                                     <RowCol>
+                                        <CommentIcon width="22" height="22" />
                                         <button
-                                            class="text-blue-500"
-                                            on:click="{toggleActionEdit(
+                                            class="text-lg text-blue-400 dark:text-sky-400"
+                                            on:click="{toggleRetroActionComments(
                                                 item.id,
                                             )}"
-                                            >Edit
+                                        >
+                                            &nbsp;{item.comments.length}
                                         </button>
+                                    </RowCol>
+                                    <RowCol>
+                                        <div class="text-right">
+                                            <HollowButton
+                                                color="teal"
+                                                onClick="{toggleRetroActionEdit(
+                                                    item.id,
+                                                )}"
+                                                >{$_('edit')}
+                                            </HollowButton>
+                                        </div>
                                     </RowCol>
                                 </TableRow>
                             {/each}
@@ -693,13 +716,13 @@
                     <h2
                         class="text-2xl font-semibold font-rajdhani uppercase mb-4 dark:text-white"
                     >
-                        Storyboards
+                        {$_('storyboards')}
                     </h2>
                 </div>
                 <div class="flex-1 text-right">
                     {#if isTeamMember}
                         <SolidButton onClick="{toggleCreateStoryboard}"
-                            >Create Storyboard
+                            >{$_('createStoryboard')}
                         </SolidButton>
                     {/if}
                 </div>
@@ -734,7 +757,7 @@
                                 <HollowButton
                                     href="{appRoutes.storyboard}/{storyboard.id}"
                                 >
-                                    Join Storyboard
+                                    {$_('joinStoryboard')}
                                 </HollowButton>
                             </div>
                         </div>
@@ -788,7 +811,7 @@
                     {$_('role')}
                 </HeadCol>
                 <HeadCol type="action">
-                    <span class="sr-only">Actions</span>
+                    <span class="sr-only">{$_('actions')}</span>
                 </HeadCol>
             </tr>
             <tbody slot="body" let:class="{className}" class="{className}">
@@ -910,11 +933,25 @@
         />
     {/if}
 
-    {#if showActionEdit}
+    {#if showRetroActionEdit}
         <EditActionItem
-            toggleEdit="{toggleActionEdit(null)}"
-            handleEdit="{handleActionEdit}"
+            toggleEdit="{toggleRetroActionEdit(null)}"
+            handleEdit="{handleRetroActionEdit}"
             action="{selectedAction}"
+        />
+    {/if}
+
+    {#if showRetroActionComments}
+        <ActionComments
+            toggleComments="{toggleRetroActionComments(null)}"
+            actions="{retroActions}"
+            users="{users}"
+            selectedActionId="{selectedRetroAction}"
+            getRetrosActions="{getRetrosActions}"
+            xfetch="{xfetch}"
+            eventTag="{eventTag}"
+            notifications="{notifications}"
+            isAdmin="{isAdmin}"
         />
     {/if}
 </PageLayout>

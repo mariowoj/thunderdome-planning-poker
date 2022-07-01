@@ -17,19 +17,22 @@ type RetroUser struct {
 
 // Retro A story mapping board
 type Retro struct {
-	Id          string         `json:"id" db:"id"`
-	OwnerID     string         `json:"ownerId" db:"owner_id"`
-	Name        string         `json:"name" db:"name"`
-	Users       []*RetroUser   `json:"users"`
-	Groups      []*RetroGroup  `json:"groups"`
-	Items       []*RetroItem   `json:"items"`
-	ActionItems []*RetroAction `json:"actionItems"`
-	Votes       []*RetroVote   `json:"votes"`
-	Format      string         `json:"format" db:"format"`
-	Phase       string         `json:"phase" db:"phase"`
-	JoinCode    string         `json:"joinCode" db:"join_code"`
-	CreatedDate string         `json:"createdDate" db:"created_date"`
-	UpdatedDate string         `json:"updatedDate" db:"updated_date"`
+	Id                   string         `json:"id" db:"id"`
+	OwnerID              string         `json:"ownerId" db:"owner_id"`
+	Name                 string         `json:"name" db:"name"`
+	Users                []*RetroUser   `json:"users"`
+	Groups               []*RetroGroup  `json:"groups"`
+	Items                []*RetroItem   `json:"items"`
+	ActionItems          []*RetroAction `json:"actionItems"`
+	Votes                []*RetroVote   `json:"votes"`
+	Facilitators         []string       `json:"facilitators"`
+	Format               string         `json:"format" db:"format"`
+	Phase                string         `json:"phase" db:"phase"`
+	JoinCode             string         `json:"joinCode" db:"join_code"`
+	MaxVotes             int            `json:"maxVotes" db:"max_votes"`
+	BrainstormVisibility string         `json:"brainstormVisibility" db:"brainstorm_visibility"`
+	CreatedDate          string         `json:"createdDate" db:"created_date"`
+	UpdatedDate          string         `json:"updatedDate" db:"updated_date"`
 }
 
 // RetroItem can be a pro (went well/worked), con (needs improvement), or a question
@@ -49,10 +52,21 @@ type RetroGroup struct {
 
 // RetroAction is an action the team can take based on retro feedback
 type RetroAction struct {
-	RetroID   string `json:"retroId,omitempty"`
-	ID        string `json:"id" db:"id"`
-	Content   string `json:"content" db:"content"`
-	Completed bool   `json:"completed" db:"completed"`
+	RetroID   string                `json:"retroId,omitempty"`
+	ID        string                `json:"id" db:"id"`
+	Content   string                `json:"content" db:"content"`
+	Completed bool                  `json:"completed" db:"completed"`
+	Comments  []*RetroActionComment `json:"comments"`
+}
+
+// RetroActionComment A retro action comment by a user
+type RetroActionComment struct {
+	ID          string `json:"id"`
+	RetroID     string `json:"retro_id"`
+	UserID      string `json:"user_id"`
+	Comment     string `json:"comment"`
+	CreateDate  string `json:"created_date"`
+	UpdatedDate string `json:"updated_date"`
 }
 
 // RetroVote is a users vote toward a retro item group
